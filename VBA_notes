@@ -1,0 +1,239 @@
+一、删除特定区域：
+
+Sub aa()
+
+   Dim myPath$, myFile$, AK As Workbook, aRow%, tRow%, i As Integer
+   Application.ScreenUpdating = False        '冻结屏幕，以防屏幕抖动
+   myPath = ThisWorkbook.Path & "\"          '把文件路径定义给变量  
+   myFile = Dir(myPath & "*.xls")            '依次找寻指定路径中的*.xls文件
+   
+   Do While myFile <> ""                     '当指定路径中有文件时进行循环
+      If myFile <> ThisWorkbook.Name Then
+         Set AK = Workbooks.Open(myPath & myFile)          '打开符合要求的文件
+         Range("a:a,d:f,h:i,n:o,q:s,x:y").Delete     
+         Workbooks(myFile).Close True               '关闭源工作簿,并不作修改
+      End If
+      myFile = Dir                                   '找寻下一个*.xls文件
+   Loop
+   
+   Application.ScreenUpdating = True                 '冻结屏幕,此类语句一般成对使用
+   MsgBox "删除完成，请查看！", 64, "提示"
+   
+End Sub
+
+---------------------------------------------------------------------------------------------------
+
+二、取基础工作表数据到工作簿模板，另存为工作簿（例如填写个税申报表）
+
+Sub cc()
+  Dim ExApp As New Excel.Application      '声明一个新的 Excel程序
+  Dim Pat As String, PatName As String
+  Dim NBook As Workbook
+  Dim Hx As Integer, Xm As String
+  With ExApp
+       .Visible = False                '程序不可视
+       .AutomationSecurity = 2         '禁用新Excel程序的宏
+       Pat = ThisWorkbook.Path & "\"   '设置路径
+       For Hx = 2 To 163      '循环数据
+          PatName = Pat & "a.xls"   '设置文件名称
+          Set NBook = .Workbooks.Open(PatName)   '打开文件 
+          NBook.Sheets(1).Range("B5").Value = Sheet1.Cells(Hx, "B").Value    '提取数据              
+          NBook.Sheets(1).Range("I5").Value = Sheet1.Cells(Hx, "C").Value            
+          NBook.Sheets(1).Range("c11").Value = Sheet1.Cells(Hx, "d").Value            
+          NBook.Sheets(1).Range("f11").Value = Sheet1.Cells(Hx, "e").Value            
+          NBook.Sheets(1).Range("g11").Value = Sheet1.Cells(Hx, "f").Value            
+          NBook.Sheets(1).Range("h11").Value = Sheet1.Cells(Hx, "g").Value            
+          Xm = Sheet1.Cells(Hx, "B").Value                       
+          NBook.SaveCopyAs Pat & Hx - 1 & Xm & ".xls"                       '按顺序另存为excel表格              
+          NBook.Close SaveChanges:=False                                    '不保存            
+       Next
+       .Quit   '退出程序
+  End With
+End Sub
+
+---------------------------------------------------------------------------------------------------
+三、批量提取指定文件夹中的文件名
+
+Sub get_filenames() '含所有子文件夹内的文件
+    Dim Fso As Object, arrf$(), mf&
+    Set Fso = CreateObject("Scripting.FileSystemObject")
+    Call GetFiles(CreateObject("Shell.Application").BrowseForFolder(0, "请选择文件夹", 0, "").Self.Path, Fso, arrf, mf)
+    [b1].Resize(mf) = Application.Transpose(arrf)
+    Set Fso = Nothing
+End Sub
+
+Private Sub GetFiles(ByVal sPath$, ByRef Fso As Object, ByRef arrf$(), ByRef mf&)
+    Dim Folder As Object
+    Dim SubFolder As Object
+    Dim File As Object
+    Set Folder = Fso.GetFolder(sPath)
+    
+    For Each File In Folder.Files
+        mf = mf + 1
+        ReDim Preserve arrf(1 To mf)
+        arrf(mf) = File.Name
+    Next
+    For Each SubFolder In Folder.SubFolders
+        Call GetFiles(SubFolder.Path, Fso, arrf, mf)
+    Next
+    Set Folder = Nothing
+    Set File = Nothing
+End Sub
+
+---------------------------------------------------------------------------------------------------
+四、批量修改文件名
+(也可以使用bat命令"ren")
+
+Sub Rename()
+  Dim y_name As String
+  Dim x_name As String
+  For i = 1 To Range("A1048576").End(xlUp).Row
+     y_name = ThisWorkbook.Path & "\" & Cells(i, 1)
+     x_name = ThisWorkbook.Path & "\" & Cells(i, 2)
+     On Error Resume Next
+     Name y_name As x_name
+  Next
+End Sub
+  
+---------------------------------------------------------------------------------------------------
+五、批量分类建立worksheet，拷贝分类数据到worksheet并保存至单独workbook
+
+序号	姓名	班级	分数
+1	    赵	  一班	88
+2	    钱	  二班	89
+3	    孙	  一班	90
+4	    李	  三班	91
+5	    周	  四班	92
+6	    吴	  五班	93
+7	    郑	  四班	94
+8	    王	  二班	95
+9	    张	  三班	96
+10	  陈	  五班	97
+
+'按照C列数据批量建立不同名称的工作表
+Sub Sht_add()
+    Dim i As Integer, sht As Worksheet
+    i = 2
+    Set sht = Worksheets(1)
+    Do While sht.Cells(i, "c").Value <> ""
+    On Error Resume Next
+        If Worksheets(sht.Cells(i, "c").Value) Is Nothing Then   '判断是否存在对应的工作表
+            Worksheets.Add after:=Worksheets(Worksheets.Count)
+            ActiveSheet.Name = sht.Cells(i, "c").Value
+        End If
+    Cells(1, "A").Resize(1, 4).Copy Worksheets(sht.Cells(i, "c").Value).Range("A1")    '复制每个表的表头
+    i = i + 1
+    Loop
+End Sub
+
+'将总表数据分类拷贝到分表
+Sub Classify()
+    Dim i As Long, bj As String, rng As Range
+    i = 2
+    bj = Cells(i, "c").Value
+        Do While bj <> ""
+            Set rng = Worksheets(bj).Range("A1048576").End(xlUp).Offset(1, 0)
+            Cells(i, "a").Resize(1, 4).Copy rng
+            i = i + 1
+            bj = Cells(i, "c").Value
+        Loop
+End Sub
+
+'把各个工作表已单独的工作簿形式保存
+Sub SavetoFile()
+    Application.ScreenUpdating = False                               '关闭屏幕更新
+    Dim folder As String
+    folder = ThisWorkbook.Path & "\aa"
+        If Len(Dir(folder, vbDirectory)) = 0 Then MkDir folder       '如果文件夹不存在，则新建文件夹
+        Dim sht As Worksheet
+        For Each sht In Worksheets                                   '遍历工作表
+            sht.Copy                                                 '复制工作表到工作簿
+            ActiveWorkbook.SaveAs folder & "\" & sht.Name & ".xls"   '保存工作簿并命名
+            ActiveWorkbook.Close
+        Next
+    Application.ScreenUpdating = True
+End Sub
+
+---------------------------------------------------------------------------------------------------
+六、将文件夹中多个相同格式的workbook数据合并到一个workbook中
+
+Sub Gather_wb()
+    Dim bt As Range, r As Long, c As Long
+    r = 1                                                                   '表头行数
+    c = 4                                                                   '表头列数
+    Range(Cells(r + 1, "a"), Cells(1024576, c)).ClearContents               '清除汇总表中原数据
+    Application.ScreenUpdating = False
+    Dim filename As String, wb As Workbook, erow As Long, fn As String, arr As Variant
+    filename = Dir(ThisWorkbook.Path & "\*.xls")
+        Do While filename <> ""
+            If filename <> ThisWorkbook.Name Then                               '判断文件是否是本工作簿
+                erow = Range("a1").CurrentRegion.Rows.Count + 1            '取得汇总表中第一条空行行号
+                fn = ThisWorkbook.Path & "\" & filename
+                Set wb = GetObject(fn)                                                           '将fn代表的工作簿变量赋给wb
+                Set sht = wb.Worksheets(1)                                       '汇总的是每个工作簿中的第一张工作表
+                '将数据表中的记录保存在arr变量中                
+                arr = sht.Range(sht.Cells(r + 1, "A"), sht.Cells(1024576, "B").End(xlUp).Offset(0, c - 1))   
+               '将arr数据写入汇总表                
+                Cells(erow, "A").Resize(UBound(arr, 1), UBound(arr, 2)) = arr                             
+                wb.Close False
+            End If
+            filename = Dir                                                                 '用dir函数取得其他文件名，并赋给变量
+        Loop
+    Application.ScreenUpdating = True
+End Sub
+
+---------------------------------------------------------------------------------------------------
+七、合并多个相同格式的worksheet数据到一个worksheet
+
+Sub Gather_ws()
+    Rows("2:1024576").Clear
+    Dim sht As Worksheet, xrow As Integer, rng As Range
+    For Each sht In Worksheets
+        If sht.Name <> ActiveSheet.Name Then
+           Set rng = Range("A1024576").End(xlUp).Offset(1, 0)   '获得A列第一个空单元格
+           xrow = sht.Range("A1").CurrentRegion.Rows.Count - 1  '获得各分表中记录的条数
+           sht.Range("A2").Resize(xrow, 4).Copy rng            '复制记录到汇总表,4代表列数
+           End If
+    Next
+End Sub
+
+---------------------------------------------------------------------------------------------------
+八、按某一列切分表格，另存为单独工作簿
+
+Sub Cutsheet() 
+ Dim i, m, n As Integer
+ Dim arr, arr1
+ Dim wb As Workbook
+ Dim Rng As Range
+ Dim Str As String
+ Dim x As Integer
+   
+ Set d = CreateObject("Scripting.Dictionary") 
+ arr = Range("b2").Resize(Range("b1048576").End(xlUp).Row - 1, 1)  '第二列除表头之外的非空数据，赋给数组arr（列值随时修改）   
+        For i = 1 To UBound(arr)   '给字典填值,取出非重复的值
+              d(arr(i, 1)) = ""
+        Next   
+ arr1 = d.Keys  '字典的key赋给一维数组   
+ t = Timer
+ Application.ScreenUpdating = False   
+ x = 2
+     For n = 1 To d.Count                    
+        Set wb = Application.Workbooks.Add                                        
+        Sheet1.Cells(1, "A").Resize(1, 5).Copy wb.Sheets(1).Range("A1")    '复制表头到分表(列数随时修改)            
+        Str = Sheet1.Cells(x, "b").Value                                   '(列值随时修改)                
+            For m = x To UBound(arr) + 1                                  '将满足要求的各行，复制到新工作簿里面
+                If Str = arr1(n - 1) Then
+                    Set Rng = wb.Sheets(1).Range("a1048576").End(xlUp).Offset(1, 0)   '定位最下面的空白输入位置
+                    Sheet1.Cells(m, "A").Resize(1, 5).Copy Rng              '复制,(列数随时修改)
+                    x = x + 1
+                End If
+                Str = Sheet1.Cells(x, "b").Value
+            Next
+                    
+         wb.Sheets(1).Columns("a:az").AutoFit                                  '根据内容调整列宽
+         wb.SaveCopyAs ThisWorkbook.Path & "\" & arr1(n - 1) & ".xlsx"          '另存为新工作簿，并重新命名
+         wb.Close False                
+      Next        
+ Application.ScreenUpdating = True 
+ MsgBox Timer - t    
+ End Sub
