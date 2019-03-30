@@ -5,6 +5,7 @@ def sel(item):
         return 1000
     st=item.strftime(format("%H:%M:%S"))
     return int(st.split(":")[0])*100+int(st.split(":")[1])
+
 df=pd.read_excel(r"C:\Users\Administrator\Desktop\aaaaa.xlsx",usecols=["部门","start","start1"])
 print(df.dtypes)
 #df[(df["start"].apply(sel))<906]["start1"]="正常"  执行不了
